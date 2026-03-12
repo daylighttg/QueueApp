@@ -1,6 +1,8 @@
 package com.example.queueapp;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -13,7 +15,9 @@ import org.json.JSONObject;
 /**
  * TicketActivity — Ticket Screen
  * Shows the customer their ticket number and current position.
- * Refresh button re-checks position from the server.
+ * Auto-refreshes every 5 seconds.
+ * Plays alarm + vibrates when the user's ticket is NOW SERVING
+ * (respects user toggle preferences from Settings).
  */
 public class TicketActivity extends AppCompatActivity {
 
@@ -24,6 +28,10 @@ public class TicketActivity extends AppCompatActivity {
     private Button btnBack;
 
     private String myTicket;
+    private boolean alreadyNotified = false;   // only fire alarm once
+
+    private final Handler autoRefreshHandler = new Handler(Looper.getMainLooper());
+    private final int REFRESH_INTERVAL = 5000; // 5 seconds
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,10 +59,29 @@ public class TicketActivity extends AppCompatActivity {
         refreshStatus();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshStatus();
+        startAutoRefresh();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopAutoRefresh();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NotificationHelper.stopAlarmSound();
+    }
+
     // ── Ask Flask for current queue + status ─────────────────
     private void refreshStatus() {
         // Fetch waiting list to find our position
-        ApiService.get("/queue", new ApiService.ApiCallback() {
+        ApiService.get(this, "/queue", new ApiService.ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
                 runOnUiThread(() -> updatePosition(response));
@@ -70,7 +97,7 @@ public class TicketActivity extends AppCompatActivity {
         });
 
         // Fetch who is being served
-        ApiService.get("/status", new ApiService.ApiCallback() {
+        ApiService.get(this, "/status", new ApiService.ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
                 runOnUiThread(() -> updateServing(response));
@@ -106,7 +133,7 @@ public class TicketActivity extends AppCompatActivity {
         }
     }
 
-    // ── Update "Now Serving" label ───────────────────────────
+    // ── Update "Now Serving" label + trigger alarm ───────────
     private void updateServing(JSONObject response) {
         try {
             if (response.isNull("serving")) {
@@ -116,10 +143,34 @@ public class TicketActivity extends AppCompatActivity {
                 String ticket = serving.getString("ticket");
                 String name   = serving.getString("name");
                 tvNowServing.setText("Now Serving: " + ticket + " — " + name);
+
+                // ── ALARM: If it's OUR ticket being served ───
+                if (ticket.equals(myTicket) && !alreadyNotified) {
+                    alreadyNotified = true;
+                    tvPosition.setText("🎉 It's your turn!");
+                    tvPosition.setTextColor(0xFF2E7D32);  // green
+                    NotificationHelper.notifyNowServing(this);
+                }
             }
         } catch (Exception e) {
             tvNowServing.setText("Now Serving: —");
         }
     }
-}
 
+    // ── Auto-refresh helpers ─────────────────────────────────
+    private final Runnable autoRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            refreshStatus();
+            autoRefreshHandler.postDelayed(this, REFRESH_INTERVAL);
+        }
+    };
+
+    private void startAutoRefresh() {
+        autoRefreshHandler.postDelayed(autoRefreshRunnable, REFRESH_INTERVAL);
+    }
+
+    private void stopAutoRefresh() {
+        autoRefreshHandler.removeCallbacks(autoRefreshRunnable);
+    }
+}

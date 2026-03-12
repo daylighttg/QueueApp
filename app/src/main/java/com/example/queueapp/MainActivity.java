@@ -17,6 +17,7 @@ import org.json.JSONObject;
  * Shows "Now Serving" info and "People Waiting" count.
  * Has a button to open the Join Queue screen.
  * Auto-refreshes every 5 seconds.
+ * On first launch, auto-discovers the Flask server on the LAN.
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -24,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvWaitingCount;
     private Button btnJoinQueue;
     private Button btnRefresh;
+    private Button btnSettings;
 
     private final Handler autoRefreshHandler = new Handler(Looper.getMainLooper());
     private final int REFRESH_INTERVAL = 5000; // 5 seconds
@@ -33,10 +35,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        tvNowServing  = findViewById(R.id.tvNowServing);
+        tvNowServing   = findViewById(R.id.tvNowServing);
         tvWaitingCount = findViewById(R.id.tvWaitingCount);
-        btnJoinQueue  = findViewById(R.id.btnJoinQueue);
-        btnRefresh    = findViewById(R.id.btnRefresh);
+        btnJoinQueue   = findViewById(R.id.btnJoinQueue);
+        btnRefresh     = findViewById(R.id.btnRefresh);
+        btnSettings    = findViewById(R.id.btnSettings);
 
         btnJoinQueue.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, JoinQueueActivity.class);
@@ -44,6 +47,36 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnRefresh.setOnClickListener(v -> fetchStatus());
+
+        btnSettings.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+            startActivity(intent);
+        });
+
+        // Auto-discover server on first launch
+        if (!ApiService.isServerConfigured(this)) {
+            Toast.makeText(this, "Searching for server…", Toast.LENGTH_SHORT).show();
+            ServerDiscovery.discover(this, new ServerDiscovery.DiscoveryCallback() {
+                @Override
+                public void onFound(String serverUrl) {
+                    ApiService.setServerUrl(MainActivity.this, serverUrl);
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this,
+                            "Server found: " + serverUrl, Toast.LENGTH_SHORT).show();
+                        fetchStatus();
+                    });
+                }
+
+                @Override
+                public void onNotFound() {
+                    runOnUiThread(() ->
+                        Toast.makeText(MainActivity.this,
+                            "Server not found. Go to Settings to enter the IP manually.",
+                            Toast.LENGTH_LONG).show()
+                    );
+                }
+            });
+        }
 
         fetchStatus();
     }
@@ -63,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
 
     // ── Fetch current status from Flask GET /status ──────────
     private void fetchStatus() {
-        ApiService.get("/status", new ApiService.ApiCallback() {
+        ApiService.get(this, "/status", new ApiService.ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
                 runOnUiThread(() -> updateDisplay(response));
@@ -116,4 +149,3 @@ public class MainActivity extends AppCompatActivity {
         autoRefreshHandler.removeCallbacks(autoRefreshRunnable);
     }
 }
-

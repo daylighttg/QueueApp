@@ -57,6 +57,17 @@
         android:text="🔄 Refresh"
         android:textSize="16sp"
         android:backgroundTint="#78909C"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Settings Button -->
+    <Button
+        android:id="@+id/btnSettings"
+        android:layout_width="250dp"
+        android:layout_height="48dp"
+        android:text="⚙️ Settings"
+        android:textSize="16sp"
+        android:backgroundTint="#546E7A"
         android:textColor="#FFFFFF" />
 
 </LinearLayout>

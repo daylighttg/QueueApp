@@ -1,12 +1,21 @@
-# Gradle files
+# =============================================================================
+# Gradle & Build
+# =============================================================================
 .gradle/
 build/
 *.gradle.bak
+*.gradle~
 
-# Local configuration file (sdk path, etc)
+# Local configuration files
 local.properties
 
-# IntelliJ IDEA files
+# Gradle wrapper (keep the JAR file)
+!gradle/wrapper/gradle-wrapper.jar
+
+# =============================================================================
+# IDE & Editor Configuration
+# =============================================================================
+# Android Studio / IntelliJ IDEA
 .idea/
 *.iml
 *.iws
@@ -16,48 +25,72 @@ local.properties
 .classpath
 .project
 .settings/
-
-# Android Studio files
-.DS_Store
-
-# Build artifacts
-*.apk
-*.aar
-*.zip
-*.jar
-# Exception: Keep the Gradle wrapper JAR
-!gradle/wrapper/gradle-wrapper.jar
-
-# Compiled Java classes
-*.class
-
-# Generated files
-bin/
-gen/
-
-# Signing files
-*.keystore
-*.jks
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Environment files
-.env
-.env.local
-
-# Dependencies
-node_modules/
+*.swp
+*.swo
+*~
 
 # VS Code
 .vscode/
 *.code-workspace
 
+# =============================================================================
+# Build Artifacts & Compiled Code
+# =============================================================================
+# APK, AAR, and other library files
+*.apk
+*.aar
+*.aab
+*.zip
+*.jar
+
+# Compiled files
+*.class
+*.o
+*.so
+
+# Generated directories
+bin/
+gen/
+out/
+
+# =============================================================================
+# Signing & Security
+# =============================================================================
+*.keystore
+*.jks
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# =============================================================================
+# Dependencies
+# =============================================================================
+node_modules/
+
+# =============================================================================
+# Operating System Files
+# =============================================================================
 # macOS
+.DS_Store
 .AppleDouble
 .LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 
 # Windows
+Thumbs.db
 .lnk
+Desktop.ini
+
+# Linux
+.directory
+*~
 

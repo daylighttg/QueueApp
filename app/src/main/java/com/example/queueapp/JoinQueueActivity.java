@@ -48,7 +48,7 @@ public class JoinQueueActivity extends AppCompatActivity {
             JSONObject body = new JSONObject();
             body.put("name", name);
 
-            ApiService.post("/join", body, new ApiService.ApiCallback() {
+            ApiService.post(JoinQueueActivity.this, "/join", body, new ApiService.ApiCallback() {
                 @Override
                 public void onSuccess(JSONObject response) {
                     runOnUiThread(() -> onJoinSuccess(response));

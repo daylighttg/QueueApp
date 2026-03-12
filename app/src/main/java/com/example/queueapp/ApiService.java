@@ -1,5 +1,8 @@
 package com.example.queueapp;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -15,17 +18,32 @@ import java.nio.charset.StandardCharsets;
  * Other activities call ApiService.get() or ApiService.post() —
  * they never talk to Flask directly.
  *
- * ⚠️  IMPORTANT: Change SERVER_URL to your PC's local IP address.
- *     Find it by running  ipconfig  in a terminal and looking for
- *     "IPv4 Address" under your Wi-Fi adapter.
+ * The server URL is read from SharedPreferences.  On first launch the
+ * app auto-discovers the server via ServerDiscovery.  If that fails
+ * the user can enter the IP manually in SettingsActivity.
  */
 public class ApiService {
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  CHANGE THIS to your PC's local IP address
-    //  Example:  "http://192.168.1.5:5000"
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    private static final String SERVER_URL = "http://192.168.1.5:5000";
+    public static final String PREFS_NAME     = "queue_app_prefs";
+    public static final String KEY_SERVER_URL  = "server_url";
+    private static final String DEFAULT_URL    = "http://192.168.1.5:5000";
+
+    // ── Read / write server URL ──────────────────────────────
+
+    public static String getServerUrl(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getString(KEY_SERVER_URL, DEFAULT_URL);
+    }
+
+    public static void setServerUrl(Context context, String url) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_SERVER_URL, url).apply();
+    }
+
+    public static boolean isServerConfigured(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.contains(KEY_SERVER_URL);
+    }
 
     // ── Callback interface ───────────────────────────────────
     public interface ApiCallback {
@@ -34,10 +52,11 @@ public class ApiService {
     }
 
     // ── GET request ──────────────────────────────────────────
-    public static void get(String endpoint, ApiCallback callback) {
+    public static void get(Context context, String endpoint, ApiCallback callback) {
+        String serverUrl = getServerUrl(context);
         new Thread(() -> {
             try {
-                URL url = new URL(SERVER_URL + endpoint);
+                URL url = new URL(serverUrl + endpoint);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(5000);
@@ -62,10 +81,11 @@ public class ApiService {
     }
 
     // ── POST request ─────────────────────────────────────────
-    public static void post(String endpoint, JSONObject data, ApiCallback callback) {
+    public static void post(Context context, String endpoint, JSONObject data, ApiCallback callback) {
+        String serverUrl = getServerUrl(context);
         new Thread(() -> {
             try {
-                URL url = new URL(SERVER_URL + endpoint);
+                URL url = new URL(serverUrl + endpoint);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
@@ -130,4 +150,3 @@ public class ApiService {
         }
     }
 }
-
