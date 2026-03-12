@@ -37,11 +37,34 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
-      # 5. Decode the keystore from the GitHub secret and save it to disk
+      # 5. Decode the keystore from the GitHub secret and save it to disk,
+      #    or generate a temporary keystore when the secret is not configured.
       - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n' | base64 --decode > app/release.keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | tr -d '\n' | base64 --decode > app/release.keystore
+            echo "SIGNING_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "SIGNING_KEY_ALIAS=${{ secrets.KEY_ALIAS }}"              >> $GITHUB_ENV
+            echo "SIGNING_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"        >> $GITHUB_ENV
+          else
+            echo "KEYSTORE_BASE64 secret not set - generating a temporary keystore for signing"
+            keytool -genkeypair -v \
+              -keystore app/release.keystore \
+              -alias release \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=QueueApp,O=QueueApp,L=Unknown,ST=Unknown,C=US"
+            echo "SIGNING_STORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "SIGNING_KEY_ALIAS=release"      >> $GITHUB_ENV
+            echo "SIGNING_KEY_PASSWORD=android"   >> $GITHUB_ENV
+          fi
 
-      # 5.5. Debug: Check keystore file size
+      # 5.5. Verify the keystore file was written correctly
       - name: Check keystore file size
         run: |
           FILE_SIZE=$(stat -c%s "app/release.keystore" 2>/dev/null || echo 0)
@@ -53,16 +76,16 @@ jobs:
 
       # 6. Verify the keystore is valid before attempting the build
       - name: Verify keystore
-        run: keytool -list -keystore app/release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -noprompt
+        run: keytool -list -keystore app/release.keystore -storepass "$SIGNING_STORE_PASSWORD" -noprompt
 
       # 7. Build the signed release APK
       - name: Build release APK
         run: ./gradlew assembleRelease
         env:
           SIGNING_STORE_FILE: release.keystore
-          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ env.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ env.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ env.SIGNING_KEY_PASSWORD }}
 
       # 8. Rename the APK to include the version tag
       - name: Rename APK
