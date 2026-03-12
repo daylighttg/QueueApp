@@ -41,6 +41,16 @@ jobs:
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n' | base64 --decode > app/release.keystore
 
+      # 5.5. Debug: Check keystore file size
+      - name: Check keystore file size
+        run: |
+          FILE_SIZE=$(stat -c%s "app/release.keystore" 2>/dev/null || echo 0)
+          echo "Keystore file size: $FILE_SIZE bytes"
+          if [ "$FILE_SIZE" -eq 0 ]; then
+            echo "ERROR: Keystore file is empty (0 bytes). The KEYSTORE_BASE64 secret may not be set correctly or the decode failed."
+            exit 1
+          fi
+
       # 6. Verify the keystore is valid before attempting the build
       - name: Verify keystore
         run: keytool -list -keystore app/release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -noprompt
