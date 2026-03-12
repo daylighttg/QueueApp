@@ -1,0 +1,78 @@
+name: Build & Publish APK
+
+on:
+  push:
+    tags:
+      - 'v*'           # triggers on tags like v1.0, v1.2.3, etc.
+  workflow_dispatch:   # allows manual trigger from GitHub Actions tab
+
+jobs:
+  build:
+    name: Build Signed Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up JDK 17 (required for AGP 8.x)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 3. Cache Gradle files to speed up builds
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # 4. Make gradlew executable
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      # 5. Decode the keystore from the GitHub secret and save it to disk
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release.keystore
+
+      # 6. Build the signed release APK
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+        env:
+          SIGNING_STORE_FILE: release.keystore
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      # 7. Rename the APK to include the version tag
+      - name: Rename APK
+        run: |
+          VERSION=${GITHUB_REF_NAME:-manual}
+          mv app/build/outputs/apk/release/app-release.apk \
+             app/build/outputs/apk/release/QueueApp-${VERSION}.apk
+
+      # 8. Upload APK as a build artifact (always available)
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QueueApp-release
+          path: app/build/outputs/apk/release/QueueApp-*.apk
+
+      # 9. Create a GitHub Release and attach the APK (only when triggered by a tag)
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/QueueApp-*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
