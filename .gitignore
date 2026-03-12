@@ -25,6 +25,8 @@ local.properties
 *.aar
 *.zip
 *.jar
+# Exception: Keep the Gradle wrapper JAR
+!gradle/wrapper/gradle-wrapper.jar
 
 # Compiled Java classes
 *.class
