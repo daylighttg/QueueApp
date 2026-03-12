@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:background="#FFFFFF">
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🎫 Your Ticket"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#1565C0"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Ticket Number (large) -->
+    <TextView
+        android:id="@+id/tvTicket"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🎫 Q000"
+        android:textSize="48sp"
+        android:textStyle="bold"
+        android:textColor="#1565C0"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Position in line -->
+    <TextView
+        android:id="@+id/tvPosition"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="You are #0 in line"
+        android:textSize="20sp"
+        android:textColor="#333333"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Now Serving -->
+    <TextView
+        android:id="@+id/tvTicketNowServing"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Now Serving: —"
+        android:textSize="18sp"
+        android:textColor="#555555"
+        android:layout_marginBottom="40dp" />
+
+    <!-- Refresh Button -->
+    <Button
+        android:id="@+id/btnTicketRefresh"
+        android:layout_width="250dp"
+        android:layout_height="48dp"
+        android:text="🔄 Refresh"
+        android:textSize="16sp"
+        android:backgroundTint="#1565C0"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Back Button -->
+    <Button
+        android:id="@+id/btnBack"
+        android:layout_width="250dp"
+        android:layout_height="48dp"
+        android:text="⬅ Back to Home"
+        android:textSize="16sp"
+        android:backgroundTint="#78909C"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>
+
