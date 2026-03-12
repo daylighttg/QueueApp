@@ -39,10 +39,13 @@ jobs:
 
       # 5. Decode the keystore from the GitHub secret and save it to disk
       - name: Decode keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release.keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n' | base64 --decode > app/release.keystore
 
-      # 6. Build the signed release APK
+      # 6. Verify the keystore is valid before attempting the build
+      - name: Verify keystore
+        run: keytool -list -keystore app/release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -noprompt
+
+      # 7. Build the signed release APK
       - name: Build release APK
         run: ./gradlew assembleRelease
         env:
@@ -51,21 +54,21 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      # 7. Rename the APK to include the version tag
+      # 8. Rename the APK to include the version tag
       - name: Rename APK
         run: |
           VERSION=${GITHUB_REF_NAME:-manual}
           mv app/build/outputs/apk/release/app-release.apk \
              app/build/outputs/apk/release/QueueApp-${VERSION}.apk
 
-      # 8. Upload APK as a build artifact (always available)
+      # 9. Upload APK as a build artifact (always available)
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: QueueApp-release
           path: app/build/outputs/apk/release/QueueApp-*.apk
 
-      # 9. Create a GitHub Release and attach the APK (only when triggered by a tag)
+      # 10. Create a GitHub Release and attach the APK (only when triggered by a tag)
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
