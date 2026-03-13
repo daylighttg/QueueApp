@@ -3,12 +3,12 @@ name: Build & Test
 on:
   push:
     branches:
-      - master
+      - main          # ← was 'master' (bug fix: repo uses 'main')
       - develop
       - 'feature/**'
   pull_request:
     branches:
-      - master
+      - main          # ← was 'master'
       - develop
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
 
       # 3. Cache Gradle files to speed up builds
       - name: Cache Gradle packages
-        uses: actions/cache@v4.0.2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
