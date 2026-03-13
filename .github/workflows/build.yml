@@ -30,7 +30,7 @@ jobs:
 
       # 3. Cache Gradle files to speed up builds
       - name: Cache Gradle packages
-        uses: actions/cache@v4.0.2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
