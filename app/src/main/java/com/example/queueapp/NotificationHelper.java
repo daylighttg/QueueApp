@@ -25,7 +25,9 @@ public class NotificationHelper {
     public static final String KEY_ALARM_ENABLED     = "alarm_sound_enabled";
     public static final String KEY_VIBRATION_ENABLED = "vibration_enabled";
 
-    private static MediaPlayer mediaPlayer;
+    private static final NotificationHelper INSTANCE = new NotificationHelper();
+    private final Object mediaPlayerLock = new Object();
+    private MediaPlayer mediaPlayer;
 
     // ── Check user preferences ───────────────────────────────
 
@@ -53,7 +55,7 @@ public class NotificationHelper {
 
     public static void notifyNowServing(Context context) {
         if (isAlarmEnabled(context)) {
-            playAlarmSound(context);
+            INSTANCE.playAlarmSound(context.getApplicationContext());
         }
         if (isVibrationEnabled(context)) {
             vibrate(context);
@@ -62,30 +64,32 @@ public class NotificationHelper {
 
     // ── Play alarm sound ─────────────────────────────────────
 
-    private static void playAlarmSound(Context context) {
+    private void playAlarmSound(Context context) {
         try {
-            stopAlarmSound();  // stop any previous alarm
+            synchronized (mediaPlayerLock) {
+                stopAlarmSoundLocked();
 
-            // Try alarm ringtone first, fall back to notification ringtone
-            Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-            if (alarmUri == null) {
-                alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                // Try alarm ringtone first, fall back to notification ringtone
+                Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                if (alarmUri == null) {
+                    alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                }
+
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.setDataSource(context, alarmUri);
+                mediaPlayer.setAudioAttributes(
+                    new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                );
+                mediaPlayer.setLooping(false);
+                mediaPlayer.prepare();
+                mediaPlayer.start();
+
+                // Auto-stop after completion
+                mediaPlayer.setOnCompletionListener(mp -> stopAlarmSound());
             }
-
-            mediaPlayer = new MediaPlayer();
-            mediaPlayer.setDataSource(context, alarmUri);
-            mediaPlayer.setAudioAttributes(
-                new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            );
-            mediaPlayer.setLooping(false);
-            mediaPlayer.prepare();
-            mediaPlayer.start();
-
-            // Auto-stop after 5 seconds
-            mediaPlayer.setOnCompletionListener(mp -> stopAlarmSound());
 
         } catch (Exception e) {
             Log.e(TAG, "Failed to play alarm sound", e);
@@ -93,15 +97,22 @@ public class NotificationHelper {
     }
 
     public static void stopAlarmSound() {
+        synchronized (INSTANCE.mediaPlayerLock) {
+            INSTANCE.stopAlarmSoundLocked();
+        }
+    }
+
+    private void stopAlarmSoundLocked() {
         try {
-            if (mediaPlayer != null) {
-                if (mediaPlayer.isPlaying()) {
-                    mediaPlayer.stop();
-                }
-                mediaPlayer.release();
-                mediaPlayer = null;
+            if (mediaPlayer == null) return;
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.stop();
             }
-        } catch (Exception ignored) { }
+            mediaPlayer.release();
+            mediaPlayer = null;
+        } catch (Exception ignored) {
+            mediaPlayer = null;
+        }
     }
 
     // ── Vibrate ──────────────────────────────────────────────

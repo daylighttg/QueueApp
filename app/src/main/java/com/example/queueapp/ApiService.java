@@ -2,6 +2,8 @@ package com.example.queueapp;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 
 import org.json.JSONObject;
 
@@ -27,6 +29,7 @@ public class ApiService {
     public static final String PREFS_NAME     = "queue_app_prefs";
     public static final String KEY_SERVER_URL  = "server_url";
     private static final String DEFAULT_URL    = "http://192.168.1.5:5000";
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     // ── Read / write server URL ──────────────────────────────
 
@@ -63,19 +66,19 @@ public class ApiService {
                 conn.setReadTimeout(5000);
 
                 int code = conn.getResponseCode();
-                String body = readStream(conn);
+                String body = readStream(conn, code);
                 conn.disconnect();
 
                 JSONObject json = parseResponse(body);
 
                 if (code >= 200 && code < 300) {
-                    callback.onSuccess(json);
+                    dispatchSuccess(callback, json);
                 } else {
                     String error = json.optString("error", "Server error " + code);
-                    callback.onError(error);
+                    dispatchError(callback, error);
                 }
             } catch (Exception e) {
-                callback.onError(e.getMessage());
+                dispatchError(callback, e.getMessage());
             }
         }).start();
     }
@@ -95,35 +98,35 @@ public class ApiService {
 
                 // Write JSON body
                 byte[] bytes = data.toString().getBytes(StandardCharsets.UTF_8);
-                OutputStream os = conn.getOutputStream();
-                os.write(bytes);
-                os.flush();
-                os.close();
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(bytes);
+                    os.flush();
+                }
 
                 int code = conn.getResponseCode();
-                String body = readStream(conn);
+                String body = readStream(conn, code);
                 conn.disconnect();
 
                 JSONObject json = parseResponse(body);
 
                 if (code >= 200 && code < 300) {
-                    callback.onSuccess(json);
+                    dispatchSuccess(callback, json);
                 } else {
                     String error = json.optString("error", "Server error " + code);
-                    callback.onError(error);
+                    dispatchError(callback, error);
                 }
             } catch (Exception e) {
-                callback.onError(e.getMessage());
+                dispatchError(callback, e.getMessage());
             }
         }).start();
     }
 
     // ── Read the response stream into a String ───────────────
-    private static String readStream(HttpURLConnection conn) {
+    private static String readStream(HttpURLConnection conn, int statusCode) {
         try {
             BufferedReader reader = new BufferedReader(
                 new InputStreamReader(
-                    conn.getResponseCode() >= 400
+                    statusCode >= 400
                         ? conn.getErrorStream()
                         : conn.getInputStream(),
                     StandardCharsets.UTF_8
@@ -148,5 +151,13 @@ public class ApiService {
         } catch (Exception e) {
             return new JSONObject();
         }
+    }
+
+    private static void dispatchSuccess(ApiCallback callback, JSONObject response) {
+        MAIN_HANDLER.post(() -> callback.onSuccess(response));
+    }
+
+    private static void dispatchError(ApiCallback callback, String error) {
+        MAIN_HANDLER.post(() -> callback.onError(error != null ? error : "Unknown error"));
     }
 }

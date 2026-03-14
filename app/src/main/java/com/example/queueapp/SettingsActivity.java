@@ -8,6 +8,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
+import androidx.core.content.ContextCompat;
 
 import org.json.JSONObject;
 
@@ -77,34 +78,30 @@ public class SettingsActivity extends AppCompatActivity {
         btnAutoDiscover.setEnabled(false);
         btnAutoDiscover.setText("Scanning…");
         tvConnectionStatus.setText("Status: Scanning network…");
-        tvConnectionStatus.setTextColor(0xFF888888);
+        tvConnectionStatus.setTextColor(ContextCompat.getColor(this, R.color.status_neutral));
 
         ServerDiscovery.discover(this, new ServerDiscovery.DiscoveryCallback() {
             @Override
             public void onFound(String serverUrl) {
-                runOnUiThread(() -> {
-                    etServerUrl.setText(serverUrl);
-                    ApiService.setServerUrl(SettingsActivity.this, serverUrl);
-                    tvConnectionStatus.setText("Status: ✅ Found server at " + serverUrl);
-                    tvConnectionStatus.setTextColor(0xFF2E7D32);
-                    btnAutoDiscover.setEnabled(true);
-                    btnAutoDiscover.setText("🔍 Auto-Detect");
-                    Toast.makeText(SettingsActivity.this,
-                        "Server found and saved!", Toast.LENGTH_SHORT).show();
-                });
+                etServerUrl.setText(serverUrl);
+                ApiService.setServerUrl(SettingsActivity.this, serverUrl);
+                tvConnectionStatus.setText("Status: ✅ Found server at " + serverUrl);
+                tvConnectionStatus.setTextColor(ContextCompat.getColor(SettingsActivity.this, R.color.success));
+                btnAutoDiscover.setEnabled(true);
+                btnAutoDiscover.setText("🔍 Auto-Detect");
+                Toast.makeText(SettingsActivity.this,
+                    "Server found and saved!", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onNotFound() {
-                runOnUiThread(() -> {
-                    tvConnectionStatus.setText("Status: ❌ No server found on network");
-                    tvConnectionStatus.setTextColor(0xFFC62828);
-                    btnAutoDiscover.setEnabled(true);
-                    btnAutoDiscover.setText("🔍 Auto-Detect");
-                    Toast.makeText(SettingsActivity.this,
-                        "Server not found. Please enter the URL manually.",
-                        Toast.LENGTH_LONG).show();
-                });
+                tvConnectionStatus.setText("Status: ❌ No server found on network");
+                tvConnectionStatus.setTextColor(ContextCompat.getColor(SettingsActivity.this, R.color.error));
+                btnAutoDiscover.setEnabled(true);
+                btnAutoDiscover.setText("🔍 Auto-Detect");
+                Toast.makeText(SettingsActivity.this,
+                    "Server not found. Please enter the URL manually.",
+                    Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -138,25 +135,21 @@ public class SettingsActivity extends AppCompatActivity {
     // ── Test connection to the server ────────────────────────
     private void testConnection() {
         tvConnectionStatus.setText("Status: Testing connection…");
-        tvConnectionStatus.setTextColor(0xFF888888);
+        tvConnectionStatus.setTextColor(ContextCompat.getColor(this, R.color.status_neutral));
 
         ApiService.get(this, "/status", new ApiService.ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
-                runOnUiThread(() -> {
-                    tvConnectionStatus.setText("Status: ✅ Connected");
-                    tvConnectionStatus.setTextColor(0xFF2E7D32);
-                    Toast.makeText(SettingsActivity.this,
-                        "Connection successful!", Toast.LENGTH_SHORT).show();
-                });
+                tvConnectionStatus.setText("Status: ✅ Connected");
+                tvConnectionStatus.setTextColor(ContextCompat.getColor(SettingsActivity.this, R.color.success));
+                Toast.makeText(SettingsActivity.this,
+                    "Connection successful!", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> {
-                    tvConnectionStatus.setText("Status: ❌ Cannot connect — " + error);
-                    tvConnectionStatus.setTextColor(0xFFC62828);
-                });
+                tvConnectionStatus.setText("Status: ❌ Cannot connect — " + error);
+                tvConnectionStatus.setTextColor(ContextCompat.getColor(SettingsActivity.this, R.color.error));
             }
         });
     }
@@ -164,23 +157,19 @@ public class SettingsActivity extends AppCompatActivity {
     // ── Silent connection check (no toast) ───────────────────
     private void testConnectionSilent() {
         tvConnectionStatus.setText("Status: Checking…");
-        tvConnectionStatus.setTextColor(0xFF888888);
+        tvConnectionStatus.setTextColor(ContextCompat.getColor(this, R.color.status_neutral));
 
         ApiService.get(this, "/status", new ApiService.ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
-                runOnUiThread(() -> {
-                    tvConnectionStatus.setText("Status: ✅ Connected");
-                    tvConnectionStatus.setTextColor(0xFF2E7D32);
-                });
+                tvConnectionStatus.setText("Status: ✅ Connected");
+                tvConnectionStatus.setTextColor(ContextCompat.getColor(SettingsActivity.this, R.color.success));
             }
 
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> {
-                    tvConnectionStatus.setText("Status: ❌ Not connected");
-                    tvConnectionStatus.setTextColor(0xFFC62828);
-                });
+                tvConnectionStatus.setText("Status: ❌ Not connected");
+                tvConnectionStatus.setTextColor(ContextCompat.getColor(SettingsActivity.this, R.color.error));
             }
         });
     }

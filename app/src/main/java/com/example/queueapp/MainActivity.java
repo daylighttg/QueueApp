@@ -60,25 +60,19 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onFound(String serverUrl) {
                     ApiService.setServerUrl(MainActivity.this, serverUrl);
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this,
-                            "Server found: " + serverUrl, Toast.LENGTH_SHORT).show();
-                        fetchStatus();
-                    });
+                    Toast.makeText(MainActivity.this,
+                        "Server found: " + serverUrl, Toast.LENGTH_SHORT).show();
+                    fetchStatus();
                 }
 
                 @Override
                 public void onNotFound() {
-                    runOnUiThread(() ->
-                        Toast.makeText(MainActivity.this,
-                            "Server not found. Go to Settings to enter the IP manually.",
-                            Toast.LENGTH_LONG).show()
-                    );
+                    Toast.makeText(MainActivity.this,
+                        "Server not found. Go to Settings to enter the IP manually.",
+                        Toast.LENGTH_LONG).show();
                 }
             });
         }
-
-        fetchStatus();
     }
 
     @Override
@@ -99,15 +93,13 @@ public class MainActivity extends AppCompatActivity {
         ApiService.get(this, "/status", new ApiService.ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
-                runOnUiThread(() -> updateDisplay(response));
+                updateDisplay(response);
             }
 
             @Override
             public void onError(String error) {
-                runOnUiThread(() ->
-                    Toast.makeText(MainActivity.this,
-                        "Could not reach server: " + error, Toast.LENGTH_SHORT).show()
-                );
+                Toast.makeText(MainActivity.this,
+                    "Could not reach server: " + error, Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -142,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void startAutoRefresh() {
+        autoRefreshHandler.removeCallbacks(autoRefreshRunnable);
         autoRefreshHandler.postDelayed(autoRefreshRunnable, REFRESH_INTERVAL);
     }
 

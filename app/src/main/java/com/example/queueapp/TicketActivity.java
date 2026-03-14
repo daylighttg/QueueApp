@@ -8,6 +8,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -55,8 +56,6 @@ public class TicketActivity extends AppCompatActivity {
 
         btnRefresh.setOnClickListener(v -> refreshStatus());
         btnBack.setOnClickListener(v -> finish());
-
-        refreshStatus();
     }
 
     @Override
@@ -80,27 +79,27 @@ public class TicketActivity extends AppCompatActivity {
 
     // ── Ask Flask for current queue + status ─────────────────
     private void refreshStatus() {
-        // Fetch waiting list to find our position
+        // Chain requests so queue + now-serving come from one refresh cycle.
         ApiService.get(this, "/queue", new ApiService.ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
-                runOnUiThread(() -> updatePosition(response));
+                updatePosition(response);
+                fetchServingStatus();
             }
 
             @Override
             public void onError(String error) {
-                runOnUiThread(() ->
-                    Toast.makeText(TicketActivity.this,
-                        "Could not reach server.", Toast.LENGTH_SHORT).show()
-                );
+                Toast.makeText(TicketActivity.this,
+                    "Could not reach server.", Toast.LENGTH_SHORT).show();
             }
         });
+    }
 
-        // Fetch who is being served
+    private void fetchServingStatus() {
         ApiService.get(this, "/status", new ApiService.ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
-                runOnUiThread(() -> updateServing(response));
+                updateServing(response);
             }
 
             @Override
@@ -148,7 +147,7 @@ public class TicketActivity extends AppCompatActivity {
                 if (ticket.equals(myTicket) && !alreadyNotified) {
                     alreadyNotified = true;
                     tvPosition.setText("🎉 It's your turn!");
-                    tvPosition.setTextColor(0xFF2E7D32);  // green
+                    tvPosition.setTextColor(ContextCompat.getColor(this, R.color.success));
                     NotificationHelper.notifyNowServing(this);
                 }
             }
@@ -167,6 +166,7 @@ public class TicketActivity extends AppCompatActivity {
     };
 
     private void startAutoRefresh() {
+        autoRefreshHandler.removeCallbacks(autoRefreshRunnable);
         autoRefreshHandler.postDelayed(autoRefreshRunnable, REFRESH_INTERVAL);
     }
 

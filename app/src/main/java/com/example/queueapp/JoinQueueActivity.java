@@ -17,6 +17,9 @@ import org.json.JSONObject;
  */
 public class JoinQueueActivity extends AppCompatActivity {
 
+    private static final String STATE_CONFIRM_ENABLED = "state_confirm_enabled";
+    private static final String STATE_CONFIRM_TEXT = "state_confirm_text";
+
     private EditText etName;
     private Button btnConfirm;
 
@@ -28,7 +31,30 @@ public class JoinQueueActivity extends AppCompatActivity {
         etName     = findViewById(R.id.etName);
         btnConfirm = findViewById(R.id.btnConfirm);
 
+        if (savedInstanceState != null) {
+            boolean wasEnabled = savedInstanceState.getBoolean(STATE_CONFIRM_ENABLED, true);
+            String savedText = savedInstanceState.getString(STATE_CONFIRM_TEXT);
+            if (savedText != null) {
+                btnConfirm.setText(savedText);
+            }
+
+            if (!wasEnabled) {
+                // The in-flight request cannot resume after process death, so recover the action.
+                btnConfirm.setEnabled(true);
+                btnConfirm.setText("Confirm");
+            } else {
+                btnConfirm.setEnabled(true);
+            }
+        }
+
         btnConfirm.setOnClickListener(v -> joinQueue());
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(STATE_CONFIRM_ENABLED, btnConfirm.isEnabled());
+        outState.putString(STATE_CONFIRM_TEXT, btnConfirm.getText().toString());
     }
 
     // ── Send name to Flask POST /join ────────────────────────
@@ -51,17 +77,15 @@ public class JoinQueueActivity extends AppCompatActivity {
             ApiService.post(JoinQueueActivity.this, "/join", body, new ApiService.ApiCallback() {
                 @Override
                 public void onSuccess(JSONObject response) {
-                    runOnUiThread(() -> onJoinSuccess(response));
+                    onJoinSuccess(response);
                 }
 
                 @Override
                 public void onError(String error) {
-                    runOnUiThread(() -> {
-                        btnConfirm.setEnabled(true);
-                        btnConfirm.setText("Confirm");
-                        Toast.makeText(JoinQueueActivity.this,
-                            "Failed to join: " + error, Toast.LENGTH_LONG).show();
-                    });
+                    btnConfirm.setEnabled(true);
+                    btnConfirm.setText("Confirm");
+                    Toast.makeText(JoinQueueActivity.this,
+                        "Failed to join: " + error, Toast.LENGTH_LONG).show();
                 }
             });
         } catch (Exception e) {

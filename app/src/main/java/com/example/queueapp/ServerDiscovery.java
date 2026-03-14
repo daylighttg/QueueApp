@@ -1,11 +1,20 @@
 package com.example.queueapp;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.LinkAddress;
+import android.net.LinkProperties;
+import android.net.Network;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import java.net.HttpURLConnection;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.URL;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +33,7 @@ public class ServerDiscovery {
     private static final int PORT = 5000;
     private static final int TIMEOUT_MS = 800;          // per-host timeout
     private static final int THREAD_POOL_SIZE = 30;     // parallel probes
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     public interface DiscoveryCallback {
         void onFound(String serverUrl);
@@ -32,14 +42,14 @@ public class ServerDiscovery {
 
     /**
      * Starts the scan on a background thread pool.
-     * Calls back on a background thread — callers should post to UI if needed.
+     * Always posts callbacks on the main thread.
      */
     public static void discover(Context context, DiscoveryCallback callback) {
         new Thread(() -> {
             String subnet = getSubnetPrefix(context);
             if (subnet == null) {
                 Log.w(TAG, "Could not determine Wi-Fi subnet");
-                callback.onNotFound();
+                postNotFound(callback);
                 return;
             }
 
@@ -78,14 +88,16 @@ public class ServerDiscovery {
 
             try {
                 latch.await();  // wait for all probes to finish
-            } catch (InterruptedException ignored) { }
-
-            pool.shutdown();
-
-            if (found.get() != null) {
-                callback.onFound(found.get());
-            } else {
-                callback.onNotFound();
+                if (found.get() != null) {
+                    postFound(callback, found.get());
+                } else {
+                    postNotFound(callback);
+                }
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                postNotFound(callback);
+            } finally {
+                pool.shutdown();
             }
         }).start();
     }
@@ -96,6 +108,28 @@ public class ServerDiscovery {
      */
     private static String getSubnetPrefix(Context context) {
         try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ConnectivityManager cm = context.getSystemService(ConnectivityManager.class);
+                if (cm == null) return null;
+                Network activeNetwork = cm.getActiveNetwork();
+                if (activeNetwork == null) return null;
+                LinkProperties linkProperties = cm.getLinkProperties(activeNetwork);
+                if (linkProperties == null) return null;
+
+                for (LinkAddress linkAddress : linkProperties.getLinkAddresses()) {
+                    InetAddress address = linkAddress.getAddress();
+                    if (address instanceof Inet4Address && !address.isLoopbackAddress()) {
+                        String hostAddress = address.getHostAddress();
+                        if (hostAddress == null) continue;
+                        int lastDot = hostAddress.lastIndexOf('.');
+                        if (lastDot > 0) {
+                            return hostAddress.substring(0, lastDot + 1);
+                        }
+                    }
+                }
+                return null;
+            }
+
             WifiManager wm = (WifiManager) context.getApplicationContext()
                     .getSystemService(Context.WIFI_SERVICE);
             if (wm == null) return null;
@@ -111,6 +145,14 @@ public class ServerDiscovery {
             Log.e(TAG, "getSubnetPrefix failed", e);
             return null;
         }
+    }
+
+    private static void postFound(DiscoveryCallback callback, String serverUrl) {
+        MAIN_HANDLER.post(() -> callback.onFound(serverUrl));
+    }
+
+    private static void postNotFound(DiscoveryCallback callback) {
+        MAIN_HANDLER.post(callback::onNotFound);
     }
 }
 
