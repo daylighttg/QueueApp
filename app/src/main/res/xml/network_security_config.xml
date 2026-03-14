@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-
-    <!-- Limit cleartext to local network addresses used by LAN discovery. -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">192.168.0.0/16</domain>
-    </domain-config>
+    <!-- The app talks to a local Flask server over HTTP during LAN discovery. -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>
 

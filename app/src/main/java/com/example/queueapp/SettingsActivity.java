@@ -6,6 +6,8 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.content.ContextCompat;
@@ -67,7 +69,14 @@ public class SettingsActivity extends AppCompatActivity {
         btnTestConnection.setOnClickListener(v -> testConnection());
 
         // ── Back button ──────────────────────────────────────
-        btnBack.setOnClickListener(v -> finish());
+        btnBack.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                showBackConfirmationDialog();
+            }
+        });
 
         // Auto-check connection status on open
         testConnectionSilent();
@@ -172,6 +181,15 @@ public class SettingsActivity extends AppCompatActivity {
                 tvConnectionStatus.setTextColor(ContextCompat.getColor(SettingsActivity.this, R.color.error));
             }
         });
+    }
+
+    private void showBackConfirmationDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("Go back?")
+            .setMessage("Are you sure you want to go back?")
+            .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+            .setPositiveButton("Go back", (dialog, which) -> finish())
+            .show();
     }
 }
 

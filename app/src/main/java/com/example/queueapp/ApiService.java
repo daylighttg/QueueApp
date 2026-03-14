@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import org.json.JSONObject;
 
@@ -29,6 +30,7 @@ public class ApiService {
     public static final String PREFS_NAME     = "queue_app_prefs";
     public static final String KEY_SERVER_URL  = "server_url";
     private static final String DEFAULT_URL    = "http://192.168.1.5:5000";
+    private static final String TAG = "ApiService";
     private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     // ── Read / write server URL ──────────────────────────────
@@ -78,7 +80,7 @@ public class ApiService {
                     dispatchError(callback, error);
                 }
             } catch (Exception e) {
-                dispatchError(callback, e.getMessage());
+                dispatchError(callback, normalizeError(e));
             }
         }).start();
     }
@@ -116,7 +118,7 @@ public class ApiService {
                     dispatchError(callback, error);
                 }
             } catch (Exception e) {
-                dispatchError(callback, e.getMessage());
+                dispatchError(callback, normalizeError(e));
             }
         }).start();
     }
@@ -159,5 +161,29 @@ public class ApiService {
 
     private static void dispatchError(ApiCallback callback, String error) {
         MAIN_HANDLER.post(() -> callback.onError(error != null ? error : "Unknown error"));
+    }
+
+    private static String normalizeError(Exception e) {
+        Log.e(TAG, "Request failed", e);
+        String message = e.getMessage();
+        if (message == null || message.trim().isEmpty()) {
+            return "Unable to reach server";
+        }
+
+        String lowered = message.toLowerCase();
+        if (lowered.contains("cleartext") && lowered.contains("not permitted")) {
+            return "HTTP blocked by Android cleartext policy";
+        }
+        if (lowered.contains("failed to connect") || lowered.contains("econnrefused")) {
+            return "Server refused connection (check IP, port, and server app)";
+        }
+        if (lowered.contains("timed out")) {
+            return "Connection timed out (check Wi-Fi and server reachability)";
+        }
+        if (lowered.contains("unable to resolve host")) {
+            return "Cannot resolve server address";
+        }
+
+        return message;
     }
 }

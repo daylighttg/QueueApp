@@ -4,9 +4,10 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
-import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
@@ -24,9 +25,12 @@ public class NotificationHelper {
     public static final String PREFS_NAME            = "queue_app_prefs";
     public static final String KEY_ALARM_ENABLED     = "alarm_sound_enabled";
     public static final String KEY_VIBRATION_ENABLED = "vibration_enabled";
+    private static final long ALARM_DURATION_MS = 40_000L;
 
     private static final NotificationHelper INSTANCE = new NotificationHelper();
     private final Object mediaPlayerLock = new Object();
+    private final Handler alarmHandler = new Handler(Looper.getMainLooper());
+    private final Runnable stopAlarmRunnable = NotificationHelper::stopAlarmSound;
     private MediaPlayer mediaPlayer;
 
     // ── Check user preferences ───────────────────────────────
@@ -69,26 +73,22 @@ public class NotificationHelper {
             synchronized (mediaPlayerLock) {
                 stopAlarmSoundLocked();
 
-                // Try alarm ringtone first, fall back to notification ringtone
-                Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-                if (alarmUri == null) {
-                    alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-                }
-
+                Uri alarmUri = Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.alarm_clock);
                 mediaPlayer = new MediaPlayer();
-                mediaPlayer.setDataSource(context, alarmUri);
                 mediaPlayer.setAudioAttributes(
                     new AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 );
-                mediaPlayer.setLooping(false);
+                mediaPlayer.setLooping(true);
+                mediaPlayer.setDataSource(context, alarmUri);
                 mediaPlayer.prepare();
                 mediaPlayer.start();
 
-                // Auto-stop after completion
-                mediaPlayer.setOnCompletionListener(mp -> stopAlarmSound());
+                // Loop continuously and enforce a hard 40-second cutoff.
+                alarmHandler.removeCallbacks(stopAlarmRunnable);
+                alarmHandler.postDelayed(stopAlarmRunnable, ALARM_DURATION_MS);
             }
 
         } catch (Exception e) {
@@ -104,6 +104,7 @@ public class NotificationHelper {
 
     private void stopAlarmSoundLocked() {
         try {
+            alarmHandler.removeCallbacks(stopAlarmRunnable);
             if (mediaPlayer == null) return;
             if (mediaPlayer.isPlaying()) {
                 mediaPlayer.stop();

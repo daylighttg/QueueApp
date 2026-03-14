@@ -7,6 +7,8 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
@@ -30,6 +32,9 @@ public class TicketActivity extends AppCompatActivity {
 
     private String myTicket;
     private boolean alreadyNotified = false;   // only fire alarm once
+    private boolean isTicketInWaitingList = true;
+    private boolean isTicketServingNow = false;
+    private boolean isTicketDone = false;
 
     private final Handler autoRefreshHandler = new Handler(Looper.getMainLooper());
     private final int REFRESH_INTERVAL = 5000; // 5 seconds
@@ -55,7 +60,14 @@ public class TicketActivity extends AppCompatActivity {
         tvNowServing.setText("Now Serving: —");
 
         btnRefresh.setOnClickListener(v -> refreshStatus());
-        btnBack.setOnClickListener(v -> finish());
+        btnBack.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                handleBackNavigation();
+            }
+        });
     }
 
     @Override
@@ -69,6 +81,7 @@ public class TicketActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         stopAutoRefresh();
+        NotificationHelper.stopAlarmSound();
     }
 
     @Override
@@ -127,8 +140,11 @@ public class TicketActivity extends AppCompatActivity {
                 // Ticket not in waiting list — may be serving or done
                 tvPosition.setText("You are no longer in the waiting list.");
             }
+
+            isTicketInWaitingList = found;
         } catch (Exception e) {
             tvPosition.setText("Could not update position.");
+            isTicketInWaitingList = true;
         }
     }
 
@@ -137,22 +153,29 @@ public class TicketActivity extends AppCompatActivity {
         try {
             if (response.isNull("serving")) {
                 tvNowServing.setText("Now Serving: —");
+                isTicketServingNow = false;
             } else {
                 JSONObject serving = response.getJSONObject("serving");
                 String ticket = serving.getString("ticket");
                 String name   = serving.getString("name");
                 tvNowServing.setText("Now Serving: " + ticket + " — " + name);
 
+                isTicketServingNow = ticket.equals(myTicket);
+
                 // ── ALARM: If it's OUR ticket being served ───
-                if (ticket.equals(myTicket) && !alreadyNotified) {
+                if (isTicketServingNow && !alreadyNotified) {
                     alreadyNotified = true;
                     tvPosition.setText("🎉 It's your turn!");
                     tvPosition.setTextColor(ContextCompat.getColor(this, R.color.success));
                     NotificationHelper.notifyNowServing(this);
                 }
             }
+
+            isTicketDone = !isTicketInWaitingList && !isTicketServingNow;
         } catch (Exception e) {
             tvNowServing.setText("Now Serving: —");
+            isTicketServingNow = false;
+            isTicketDone = false;
         }
     }
 
@@ -172,5 +195,23 @@ public class TicketActivity extends AppCompatActivity {
 
     private void stopAutoRefresh() {
         autoRefreshHandler.removeCallbacks(autoRefreshRunnable);
+    }
+
+    private void handleBackNavigation() {
+        if (isTicketServingNow || isTicketDone) {
+            finish();
+            return;
+        }
+
+        showBackConfirmationDialog();
+    }
+
+    private void showBackConfirmationDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("Go back?")
+            .setMessage("Are you sure you want to go back?")
+            .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+            .setPositiveButton("Go back", (dialog, which) -> finish())
+            .show();
     }
 }

@@ -6,6 +6,8 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import org.json.JSONObject;
@@ -48,6 +50,13 @@ public class JoinQueueActivity extends AppCompatActivity {
         }
 
         btnConfirm.setOnClickListener(v -> joinQueue());
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                showBackConfirmationDialog();
+            }
+        });
     }
 
     @Override
@@ -114,6 +123,15 @@ public class JoinQueueActivity extends AppCompatActivity {
             btnConfirm.setEnabled(true);
             btnConfirm.setText("Confirm");
         }
+    }
+
+    private void showBackConfirmationDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("Go back?")
+            .setMessage("Are you sure you want to go back?")
+            .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+            .setPositiveButton("Go back", (dialog, which) -> finish())
+            .show();
     }
 }
 
