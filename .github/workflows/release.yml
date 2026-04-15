@@ -6,6 +6,9 @@ on:
       - 'v*'                    # Triggers on tags like v1.0, v1.2.3, etc.
   workflow_dispatch:            # Allows manual trigger from GitHub Actions tab
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # opt into Node.js 24 now
+
 jobs:
   build:
     name: Build Signed Release APK
@@ -90,42 +93,46 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ env.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ env.SIGNING_KEY_PASSWORD }}
 
-      # 8. Rename the APK to include the version tag
-      - name: Rename APK
+      # 8. Compute a release name and rename the APK
+      #    - Tag push  → use the tag (e.g. v1.0.0)
+      #    - Manual    → use "manual-YYYYMMDD-HHMMSS"
+      - name: Set release name & rename APK
         run: |
-          VERSION=${GITHUB_REF_NAME:-manual}
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            RELEASE_NAME="${GITHUB_REF_NAME}"
+          else
+            RELEASE_NAME="manual-$(date -u +'%Y%m%d-%H%M%S')"
+          fi
+          echo "RELEASE_NAME=${RELEASE_NAME}" >> $GITHUB_ENV
           mv app/build/outputs/apk/release/app-release.apk \
-             app/build/outputs/apk/release/QueueApp-${VERSION}.apk
+             app/build/outputs/apk/release/QueueApp-${RELEASE_NAME}.apk
 
       # 9. Upload APK as a build artifact (always available)
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: QueueApp-release
+          name: QueueApp-${{ env.RELEASE_NAME }}
           path: app/build/outputs/apk/release/QueueApp-*.apk
 
-      # 10. Create a GitHub Release and attach the APK (only when triggered by a tag)
+      # 10. Create a GitHub Release and attach the APK — runs on BOTH tag
+      #     pushes AND manual triggers so the APK always appears at
+      #     https://github.com/daylighttg/QueueApp/releases
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_NAME }}
+          name: ${{ env.RELEASE_NAME }}
           files: app/build/outputs/apk/release/QueueApp-*.apk
-          generate_release_notes: true
+          generate_release_notes: ${{ startsWith(github.ref, 'refs/tags/') }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 11. Write a job summary with a direct link to publish a release manually
+      # 11. Job summary with direct link to the new release
       - name: Job summary
         run: |
-          VERSION=${GITHUB_REF_NAME:-manual}
           echo "## ✅ Build complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**APK:** \`QueueApp-${VERSION}.apk\` is available in the Artifacts section above." >> $GITHUB_STEP_SUMMARY
+          echo "**APK:** \`QueueApp-${{ env.RELEASE_NAME }}.apk\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "🚀 A GitHub Release has been created automatically for tag \`${VERSION}\`." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "📦 This was a manual run (no tag). To publish a release, click the link below:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "➡️ [**Create a new release →**](https://github.com/daylighttg/QueueApp/releases/new)" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "➡️ [**View release on GitHub →**](https://github.com/daylighttg/QueueApp/releases/tag/${{ env.RELEASE_NAME }})" >> $GITHUB_STEP_SUMMARY
