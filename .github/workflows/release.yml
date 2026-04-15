@@ -3,34 +3,33 @@ name: Build & Publish Release
 on:
   push:
     tags:
-      - 'v*'                    # Triggers on tags like v1.0, v1.2.3, etc.
-  workflow_dispatch:            # Allows manual trigger from GitHub Actions tab
+      - 'v*' # Triggers on tags like v1.0, v1.2.3, etc.
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # opt into Node.js 24 now
 
 jobs:
   build:
     name: Build Signed Release APK
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
 
     steps:
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.2
 
       # 2. Set up JDK 17 (required for AGP 8.x)
       - name: Set up JDK 17
-        uses: actions/setup-java@v4.7.0
+        uses: actions/setup-java@v5.2.0
         with:
           distribution: temurin
           java-version: '17'
 
       # 3. Cache Gradle files to speed up builds
       - name: Cache Gradle packages
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v5.0.5
         with:
           path: |
             ~/.gradle/caches
@@ -44,7 +43,7 @@ jobs:
         run: chmod +x gradlew
 
       # 5. Decode the keystore from the GitHub secret and save it to disk,
-      #    or generate a temporary keystore when the secret is not configured.
+      # or generate a temporary keystore when the secret is not configured.
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -52,8 +51,8 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | tr -d '\n' | base64 --decode > app/release.keystore
             echo "SIGNING_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "SIGNING_KEY_ALIAS=${{ secrets.KEY_ALIAS }}"              >> $GITHUB_ENV
-            echo "SIGNING_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"        >> $GITHUB_ENV
+            echo "SIGNING_KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "SIGNING_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
           else
             echo "KEYSTORE_BASE64 secret not set - generating a temporary keystore for signing"
             keytool -genkeypair -v \
@@ -66,8 +65,8 @@ jobs:
               -keypass android \
               -dname "CN=QueueApp,O=QueueApp,L=Unknown,ST=Unknown,C=US"
             echo "SIGNING_STORE_PASSWORD=android" >> $GITHUB_ENV
-            echo "SIGNING_KEY_ALIAS=release"      >> $GITHUB_ENV
-            echo "SIGNING_KEY_PASSWORD=android"   >> $GITHUB_ENV
+            echo "SIGNING_KEY_ALIAS=release" >> $GITHUB_ENV
+            echo "SIGNING_KEY_PASSWORD=android" >> $GITHUB_ENV
           fi
 
       # 5.5. Verify the keystore file was written correctly
@@ -94,8 +93,8 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ env.SIGNING_KEY_PASSWORD }}
 
       # 8. Compute a release name and rename the APK
-      #    - Tag push  → use the tag (e.g. v1.0.0)
-      #    - Manual    → use "manual-YYYYMMDD-HHMMSS"
+      # - Tag push -> use the tag (e.g. v1.0.0)
+      # - Manual -> use "manual-YYYYMMDD-HHMMSS"
       - name: Set release name & rename APK
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
@@ -103,22 +102,24 @@ jobs:
           else
             RELEASE_NAME="manual-$(date -u +'%Y%m%d-%H%M%S')"
           fi
+
           echo "RELEASE_NAME=${RELEASE_NAME}" >> $GITHUB_ENV
+
           mv app/build/outputs/apk/release/app-release.apk \
              app/build/outputs/apk/release/QueueApp-${RELEASE_NAME}.apk
 
       # 9. Upload APK as a build artifact (always available)
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: QueueApp-${{ env.RELEASE_NAME }}
           path: app/build/outputs/apk/release/QueueApp-*.apk
 
       # 10. Create a GitHub Release and attach the APK — runs on BOTH tag
-      #     pushes AND manual triggers so the APK always appears at
-      #     https://github.com/daylighttg/QueueApp/releases
+      # pushes AND manual triggers so the APK always appears at
+      # https://github.com/daylighttg/QueueApp/releases
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: ${{ env.RELEASE_NAME }}
           name: ${{ env.RELEASE_NAME }}
