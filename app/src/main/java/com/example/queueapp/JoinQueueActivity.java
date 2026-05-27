@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -21,9 +22,12 @@ public class JoinQueueActivity extends AppCompatActivity {
 
     private static final String STATE_CONFIRM_ENABLED = "state_confirm_enabled";
     private static final String STATE_CONFIRM_TEXT = "state_confirm_text";
+    private static final String STATE_PRIORITY_INDEX = "state_priority_index";
 
     private EditText etName;
     private Button btnConfirm;
+    private Spinner spPriority;
+    private int selectedPriority = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +36,7 @@ public class JoinQueueActivity extends AppCompatActivity {
 
         etName     = findViewById(R.id.etName);
         btnConfirm = findViewById(R.id.btnConfirm);
+        spPriority = findViewById(R.id.spPriority);
 
         if (savedInstanceState != null) {
             boolean wasEnabled = savedInstanceState.getBoolean(STATE_CONFIRM_ENABLED, true);
@@ -47,6 +52,9 @@ public class JoinQueueActivity extends AppCompatActivity {
             } else {
                 btnConfirm.setEnabled(true);
             }
+
+            int savedPriority = savedInstanceState.getInt(STATE_PRIORITY_INDEX, 0);
+            spPriority.setSelection(PriorityUtils.normalizePriority(savedPriority));
         }
 
         btnConfirm.setOnClickListener(v -> joinQueue());
@@ -64,6 +72,7 @@ public class JoinQueueActivity extends AppCompatActivity {
         super.onSaveInstanceState(outState);
         outState.putBoolean(STATE_CONFIRM_ENABLED, btnConfirm.isEnabled());
         outState.putString(STATE_CONFIRM_TEXT, btnConfirm.getText().toString());
+        outState.putInt(STATE_PRIORITY_INDEX, spPriority.getSelectedItemPosition());
     }
 
     // ── Send name to Flask POST /join ────────────────────────
@@ -75,6 +84,8 @@ public class JoinQueueActivity extends AppCompatActivity {
             return;
         }
 
+        selectedPriority = PriorityUtils.normalizePriority(spPriority.getSelectedItemPosition());
+
         // Disable button while request is in progress
         btnConfirm.setEnabled(false);
         btnConfirm.setText("Joining…");
@@ -82,6 +93,7 @@ public class JoinQueueActivity extends AppCompatActivity {
         try {
             JSONObject body = new JSONObject();
             body.put("name", name);
+            body.put("priority", selectedPriority);
 
             ApiService.post(JoinQueueActivity.this, "/join", body, new ApiService.ApiCallback() {
                 @Override
@@ -110,11 +122,15 @@ public class JoinQueueActivity extends AppCompatActivity {
             String ticket   = response.getString("ticket");
             String name     = response.getString("name");
             int    position = response.getInt("position");
+            int priority    = PriorityUtils.normalizePriority(
+                response.optInt("priority", selectedPriority)
+            );
 
             Intent intent = new Intent(JoinQueueActivity.this, TicketActivity.class);
             intent.putExtra("ticket", ticket);
             intent.putExtra("name", name);
             intent.putExtra("position", position);
+            intent.putExtra("priority", priority);
             startActivity(intent);
             finish(); // close this screen
         } catch (Exception e) {
@@ -134,4 +150,3 @@ public class JoinQueueActivity extends AppCompatActivity {
             .show();
     }
 }
-

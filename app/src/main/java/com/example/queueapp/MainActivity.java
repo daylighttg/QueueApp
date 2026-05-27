@@ -9,6 +9,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import org.json.JSONObject;
 
@@ -112,15 +113,20 @@ public class MainActivity extends AppCompatActivity {
 
             if (response.isNull("serving")) {
                 tvNowServing.setText("Now Serving: —");
+                tvNowServing.setTextColor(ContextCompat.getColor(this, R.color.status_neutral));
             } else {
                 JSONObject serving = response.getJSONObject("serving");
                 String ticket = serving.getString("ticket");
                 String name   = serving.getString("name");
-                tvNowServing.setText("Now Serving: " + ticket + " — " + name);
+                int priority = PriorityUtils.normalizePriority(serving.optInt("priority", 0));
+                tvNowServing.setText("Now Serving: " + PriorityUtils.emojiFor(priority)
+                    + " " + ticket + " — " + name);
+                tvNowServing.setTextColor(ContextCompat.getColor(this, PriorityUtils.colorResFor(priority)));
             }
         } catch (Exception e) {
             tvNowServing.setText("Now Serving: —");
             tvWaitingCount.setText("People Waiting: —");
+            tvNowServing.setTextColor(ContextCompat.getColor(this, R.color.status_neutral));
         }
     }
 
