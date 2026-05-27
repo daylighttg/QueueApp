@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Queue App</string>
+    <string-array name="priority_labels">
+        <item>🟢 Regular</item>
+        <item>🟡 Senior / Elderly / Disabled</item>
+        <item>🔴 VIP / Premium</item>
+    </string-array>
 </resources>
-

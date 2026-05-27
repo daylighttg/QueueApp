@@ -31,6 +31,7 @@ public class TicketActivity extends AppCompatActivity {
     private Button btnBack;
 
     private String myTicket;
+    private int myPriority = 0;
     private boolean alreadyNotified = false;   // only fire alarm once
     private boolean isTicketInWaitingList = true;
     private boolean isTicketServingNow = false;
@@ -54,10 +55,15 @@ public class TicketActivity extends AppCompatActivity {
         myTicket      = getIntent().getStringExtra("ticket");
         String name   = getIntent().getStringExtra("name");
         int position  = getIntent().getIntExtra("position", 0);
+        myPriority    = PriorityUtils.normalizePriority(
+            getIntent().getIntExtra("priority", 0)
+        );
 
-        tvTicket.setText("🎫 " + myTicket);
+        tvTicket.setText(PriorityUtils.emojiFor(myPriority) + " 🎫 " + myTicket);
+        tvTicket.setTextColor(ContextCompat.getColor(this, PriorityUtils.colorResFor(myPriority)));
         tvPosition.setText("You are #" + position + " in line");
         tvNowServing.setText("Now Serving: —");
+        tvNowServing.setTextColor(ContextCompat.getColor(this, R.color.status_neutral));
 
         btnRefresh.setOnClickListener(v -> refreshStatus());
         btnBack.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
@@ -153,12 +159,16 @@ public class TicketActivity extends AppCompatActivity {
         try {
             if (response.isNull("serving")) {
                 tvNowServing.setText("Now Serving: —");
+                tvNowServing.setTextColor(ContextCompat.getColor(this, R.color.status_neutral));
                 isTicketServingNow = false;
             } else {
                 JSONObject serving = response.getJSONObject("serving");
                 String ticket = serving.getString("ticket");
                 String name   = serving.getString("name");
-                tvNowServing.setText("Now Serving: " + ticket + " — " + name);
+                int priority = PriorityUtils.normalizePriority(serving.optInt("priority", 0));
+                tvNowServing.setText("Now Serving: " + PriorityUtils.emojiFor(priority)
+                    + " " + ticket + " — " + name);
+                tvNowServing.setTextColor(ContextCompat.getColor(this, PriorityUtils.colorResFor(priority)));
 
                 isTicketServingNow = ticket.equals(myTicket);
 
@@ -174,6 +184,7 @@ public class TicketActivity extends AppCompatActivity {
             isTicketDone = !isTicketInWaitingList && !isTicketServingNow;
         } catch (Exception e) {
             tvNowServing.setText("Now Serving: —");
+            tvNowServing.setTextColor(ContextCompat.getColor(this, R.color.status_neutral));
             isTicketServingNow = false;
             isTicketDone = false;
         }

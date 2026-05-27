@@ -38,6 +38,22 @@
         android:background="@android:drawable/edit_text"
         android:layout_marginBottom="24dp" />
 
+    <!-- Priority Selection -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select priority:"
+        android:textSize="16sp"
+        android:textColor="#555555"
+        android:layout_marginBottom="8dp" />
+
+    <Spinner
+        android:id="@+id/spPriority"
+        android:layout_width="280dp"
+        android:layout_height="52dp"
+        android:entries="@array/priority_labels"
+        android:layout_marginBottom="24dp" />
+
     <!-- Confirm Button -->
     <Button
         android:id="@+id/btnConfirm"
@@ -49,4 +65,3 @@
         android:textColor="#FFFFFF" />
 
 </LinearLayout>
-
